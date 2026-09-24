@@ -4,15 +4,14 @@
         "description": "Upload images such as memes or cool cars and organize them into a tier list.",
         "link": "tierlist.php"
     },
-        {
+    {
         "title": "Drone + Metronome App",
         "description": "Useful for practicing brass instruments, specifically long tones, scales and arpeggios. Features a piano keyboard layout or circle of fifths layout for note selection. As well as a metronome and keyboard shorcuts for changing octave, volume or, notes.",
         "link": "drone-app"
-    }
- {
+    },
+    {
         "title": "Scale Randomizer",
         "description": "Provides list of four scales at a time, to play from memory. Includes suggested articulations, and arpeggio to play with the scale. Also shows progress bar for completing all the scales.",
         "link": "randomizer.html"
-    },
-
+    }
 ]
