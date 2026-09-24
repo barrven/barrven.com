@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scale Randomizer</title>
+  <style>
+    :root {
+      --bg: #f6f5f2;
+      --card: #ffffff;
+      --text: #1d1d1f;
+      --muted: #6b6b70;
+      --accent: #3b5bdb;
+      --accent-hover: #2f4ac0;
+      --border: #e2e0da;
+      --done: #2f9e44;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #17171a;
+        --card: #222226;
+        --text: #f2f2f4;
+        --muted: #a0a0a8;
+        --accent: #7b93ff;
+        --accent-hover: #93a7ff;
+        --border: #34343a;
+        --done: #40c057;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin: 0 0 24px;
+    }
+
+    #results {
+      list-style: none;
+      margin: 0 0 24px;
+      padding: 0;
+      display: grid;
+      /* Every card matches the tallest one if text wraps past the minimum */
+      grid-auto-rows: 1fr;
+      gap: 12px;
+    }
+
+    .entry {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      /* Room for all four lines plus one wrapped line on narrow screens */
+      min-height: 8.25rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      column-gap: 16px;
+      align-items: center;
+    }
+
+    .num {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .key {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .detail {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    #shuffle {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #shuffle:hover { background: var(--accent-hover); }
+
+    .progress {
+      margin: 0 0 24px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .progress-track {
+      height: 10px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      background: var(--done);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    #reset {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: var(--muted);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #reset:hover { color: var(--text); }
+
+    .entry.done {
+      border-color: var(--done);
+    }
+
+    .done-toggle {
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .done-toggle:hover { border-color: var(--muted); }
+
+    .entry.done .done-toggle {
+      color: #fff;
+      background: var(--done);
+      border-color: var(--done);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Scale Randomizer</h1>
+    <div class="progress">
+      <div class="progress-label">
+        <span id="progress-text"></span>
+        <button id="reset" type="button">Reset</button>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+    <ul id="results"></ul>
+    <button id="shuffle">New set</button>
+  </main>
+
+  <script>
+    const COUNT = 4;
+    const lists = {
+      keys: [
+        "A minor",
+        "E minor",
+        "B minor",
+        "F♯ minor",
+        "C♯ minor",
+        "G♯ minor",
+        "A♭ minor",
+        "E♭ minor",
+        "A♯ minor",
+        "B♭ minor",
+        "D minor",
+        "G minor",
+        "C minor",
+        "F minor",
+        "D♯ minor",
+        "C major",
+        "G major",
+        "D major",
+        "A major",
+        "E major",
+        "B major",
+        "F♯ major",
+        "C♯ major",
+        "F major",
+        "B♭ major",
+        "E♭ major",
+        "A♭ major",
+        "D♭ major",
+        "G♭ major",
+        "C♭ major",
+      ],
+      articulations: [
+        "All slurred",
+        "All tongued",
+        "2 slurred, 2 tongued",
+        "2 tongued, 2 slurred",
+        "2 slurred, 2 slurred",
+        "3 slurred, 1 tongued",
+        "1 tongued, 3 slurred",
+        "1 tongued, 2 slurred, 1 tongued",
+      ],
+      arpeggios: [
+        "Arpeggio",
+        "Dominant 7th",
+        "Diminished 7th",
+      ],
+      minorForms: [
+        "Harmonic",
+        "Melodic",
+      ],
+    };
+
+    function pick(list) {
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    // Fisher-Yates shuffle, then take the first n: guarantees unique keys
+    function sample(list, n) {
+      const copy = [...list];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy.slice(0, n);
+    }
+
+    // Progress is tracked per pitch, so enharmonic spellings (F♯ / G♭) share one entry
+    const STORAGE_KEY = "scale-randomizer-progress";
+    const NOTE_VALUES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+    function pitchClass(key) {
+      const [note] = key.split(" ");
+      let value = NOTE_VALUES[note[0]];
+      if (note.includes("♯")) value += 1;
+      if (note.includes("♭")) value -= 1;
+      return (value + 12) % 12;
+    }
+
+    function progressId(key, form) {
+      const quality = key.endsWith("minor") ? "minor" : "major";
+      return form ? `${pitchClass(key)} ${quality} ${form}` : `${pitchClass(key)} ${quality}`;
+    }
+
+    const allIds = new Set();
+    lists.keys.forEach(key => {
+      if (key.endsWith("minor")) {
+        lists.minorForms.forEach(form => allIds.add(progressId(key, form)));
+      } else {
+        allIds.add(progressId(key));
+      }
+    });
+
+    function loadCompleted() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        return new Set(saved.filter(id => allIds.has(id)));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveCompleted() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...completed]));
+      } catch {
+        // Storage unavailable: progress lasts until the page is closed
+      }
+    }
+
+    const completed = loadCompleted();
+
+    function updateProgress() {
+      const done = completed.size;
+      const total = allIds.size;
+      document.getElementById("progress-text").textContent = `${done} / ${total} completed`;
+      document.getElementById("progress-fill").style.width = `${(done / total) * 100}%`;
+    }
+
+    function setDoneState(li, id) {
+      const isDone = completed.has(id);
+      li.classList.toggle("done", isDone);
+      li.querySelector(".done-toggle").textContent = isDone ? "Done ✓" : "Mark done";
+    }
+
+    // Picks COUNT distinct keys, taking unfinished key/form combos first and
+    // topping up with finished ones once fewer than COUNT remain unfinished
+    function chooseSet() {
+      const chosen = [];
+      const usedKeys = new Set();
+      const usedIds = new Set();
+
+      function add(key, forms) {
+        const options = forms.filter(form => !usedIds.has(progressId(key, form)));
+        if (usedKeys.has(key) || options.length === 0) return;
+        const form = pick(options);
+        chosen.push({ key, form });
+        usedKeys.add(key);
+        usedIds.add(progressId(key, form));
+      }
+
+      function formsFor(key) {
+        return key.endsWith("minor") ? lists.minorForms : [null];
+      }
+
+      for (const key of sample(lists.keys, lists.keys.length)) {
+        if (chosen.length === COUNT) break;
+        add(key, formsFor(key).filter(form => !completed.has(progressId(key, form))));
+      }
+      for (const key of sample(lists.keys, lists.keys.length)) {
+        if (chosen.length === COUNT) break;
+        add(key, formsFor(key));
+      }
+      return sample(chosen, chosen.length);
+    }
+
+    function render() {
+      const results = document.getElementById("results");
+      results.innerHTML = "";
+      chooseSet().forEach(({ key, form }, i) => {
+        const li = document.createElement("li");
+        li.className = "entry";
+        li.innerHTML = `
+          <span class="num">${i + 1}</span>
+          <div class="info">
+            <span class="key"></span>
+            <span class="detail minor-form"></span>
+            <span class="detail articulation"></span>
+            <span class="detail arpeggio"></span>
+          </div>
+          <button class="done-toggle" type="button"></button>`;
+        li.querySelector(".key").textContent = key;
+        const minorForm = li.querySelector(".minor-form");
+        if (form) {
+          minorForm.textContent = form;
+        } else {
+          // Keep an empty line (moved to the bottom) so major cards match the height of minor cards
+          minorForm.textContent = " ";
+          minorForm.setAttribute("aria-hidden", "true");
+          minorForm.parentElement.appendChild(minorForm);
+        }
+        li.querySelector(".articulation").textContent = pick(lists.articulations);
+        li.querySelector(".arpeggio").textContent = pick(lists.arpeggios);
+
+        const id = progressId(key, form);
+        setDoneState(li, id);
+        li.querySelector(".done-toggle").addEventListener("click", () => {
+          if (completed.has(id)) completed.delete(id);
+          else completed.add(id);
+          saveCompleted();
+          setDoneState(li, id);
+          updateProgress();
+        });
+
+        results.appendChild(li);
+      });
+    }
+
+    document.getElementById("reset").addEventListener("click", () => {
+      if (!confirm("Reset all progress?")) return;
+      completed.clear();
+      saveCompleted();
+      updateProgress();
+      render();
+    });
+
+    const button = document.getElementById("shuffle");
+    button.addEventListener("click", render);
+    updateProgress();
+    render();
+  </script>
+</body>
+</html>
