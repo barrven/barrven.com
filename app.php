@@ -334,17 +334,15 @@ if (is_readable($projectsPath)) {
     <main>
         <section class="view" id="view-home" data-view="home">
             <p class="eyebrow">Welcome</p>
-            <h1>Hey, I'm Barrington.</h1>
+            <h1>Hi, thanks for stopping by</h1>
             <p class="lede">
-                Placeholder about copy goes here. A sentence or two on who I am,
-                what I work on, and why this site exists — swap this out for the
-                real bio later.
+                This is a basic website to host some code that I've written. Check it out under projects. 
             </p>
             <a href="#projects" class="btn" data-view="projects">See my projects &rarr;</a>
         </section>
 
         <section class="view" id="view-projects" data-view="projects">
-            <p class="eyebrow">Work</p>
+            <p class="eyebrow">Code</p>
             <h1>Projects</h1>
             <p class="lede">A few things I've built.</p>
             <?php if (empty($projects)): ?>

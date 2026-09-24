@@ -1,0 +1,2586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone + Metronome</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    overflow-y: auto;
+    background:
+        radial-gradient(circle at center, #20253b 0%, #0b0d15 70%);
+    color: #f5f5f7;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.app {
+    width: min(900px, 96vw);
+    min-height: 100dvh;
+    margin: auto;
+    padding: clamp(10px, 2vh, 30px) clamp(10px, 3vw, 20px) clamp(14px, 3vh, 40px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1.6vh, 18px);
+    text-align: center;
+}
+
+.panel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(6px, 1.6vh, 18px);
+}
+
+/* Short-and-wide viewports (short desktop/laptop windows): put the
+   controls panel beside the circle instead of above it, since
+   stacking everything vertically can't fit the height. Narrower
+   landscape phones fall back to the column layout below instead —
+   a narrow panel just wraps taller here and loses more than it
+   saves. */
+@media (max-height: 560px) and (min-width: 900px) {
+    .app {
+        flex-direction: row;
+        justify-content: center;
+        gap: clamp(12px, 2vw, 28px);
+    }
+
+    .panel {
+        width: auto;
+        flex: 0 1 auto;
+        max-width: 46%;
+    }
+
+    .info-panel {
+        display: none;
+    }
+}
+
+.app-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(20px, min(5vw, 4.5vh), 40px);
+    font-weight: 600;
+}
+
+.info-button {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #dfe3f0;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.info-button:hover {
+    background: rgba(255,255,255,0.14);
+    transform: translateY(-50%);
+}
+
+.info-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    width: min(320px, 86vw);
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(24, 28, 44, 0.97);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+    color: #b6bad0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.info-panel[hidden] {
+    display: none;
+}
+
+.info-lead {
+    margin: 0 0 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: #d5d8e8;
+}
+
+.info-shortcuts {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    row-gap: 9px;
+    align-items: baseline;
+}
+
+.info-shortcuts > div {
+    display: contents;
+}
+
+.info-shortcuts dt {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-width: 110px;
+}
+
+.info-shortcuts dd {
+    margin: 0;
+    color: #b6bad0;
+}
+
+.info-hint {
+    display: block;
+    color: #7a7f96;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+kbd {
+    display: inline-block;
+    min-width: 1.3em;
+    padding: 1px 5px;
+    text-align: center;
+    font: 600 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #eef0f8;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+}
+
+.subtitle {
+    color: #858ba3;
+    font-size: clamp(11px, 1.6vh, 14px);
+    margin: 0;
+}
+
+/* =========================
+   METRONOME
+========================= */
+
+.metronome {
+    width: min(400px, 88vw);
+    margin: 0;
+    padding: clamp(8px, 1.4vh, 14px) clamp(10px, 2.4vw, 16px);
+    border-radius: 16px;
+    background: rgba(24, 28, 44, 0.9);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 15px 50px rgba(0,0,0,0.25);
+}
+
+.metro-title {
+    color: #858ba3;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 10px;
+    margin-bottom: clamp(4px, 0.9vh, 8px);
+}
+
+.bpm-display {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: clamp(4px, 0.9vh, 8px);
+}
+
+.bpm-number {
+    font-size: clamp(20px, 3.6vh, 30px);
+    line-height: 1;
+    font-weight: 700;
+}
+
+.bpm-label {
+    color: #858ba3;
+    font-size: 11px;
+}
+
+.metro-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.metronome button {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 7px;
+}
+
+button {
+    border: 0;
+    color: white;
+    background: #292e43;
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+button:hover {
+    background: #3a405b;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+.metro-start {
+    background: #5865e8;
+    min-width: 90px;
+    font-weight: 600;
+}
+
+.metro-start:hover {
+    background: #6975ff;
+}
+
+.tap {
+    background: #333950;
+}
+
+input[type="range"] {
+    width: 160px;
+    accent-color: #6875ff;
+    cursor: pointer;
+}
+
+.metronome .metro-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #858ba3;
+    font-size: 12px;
+}
+
+.metronome .option {
+    gap: 6px;
+    font-size: 11px;
+}
+
+.metronome input[type="range"] {
+    width: 110px;
+}
+
+.metronome select {
+    background: #292e43;
+    border: 0;
+    color: white;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
+/* Beat lights */
+
+.metronome .beats {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: clamp(6px, 1.2vh, 12px);
+}
+
+.metronome .beat {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #383e55;
+    transition:
+        background 0.05s,
+        box-shadow 0.05s,
+        transform 0.05s;
+}
+
+.beat.active {
+    background: #6875ff;
+    box-shadow: 0 0 15px #6875ff;
+    transform: scale(1.35);
+}
+
+.beat.first.active {
+    background: #ff657a;
+    box-shadow: 0 0 18px #ff657a;
+}
+
+/* =========================
+   DRONE CONTROLS
+========================= */
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.controls-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.controls-row--volume {
+    width: 100%;
+}
+
+.octave {
+    min-width: 100px;
+    font-weight: 600;
+}
+
+.layout-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 124px;
+    padding: 7px 10px;
+    background: #292e43;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.layout-toggle:hover {
+    background: #353d5a;
+}
+
+.layout-toggle-visual {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 30px;
+    padding: 0 6px;
+}
+
+.layout-toggle-icon {
+    position: relative;
+    width: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #dfe3f0;
+    font-size: 15px;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.layout-toggle-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #14162a;
+    color: #dfe3f0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.layout-toggle-icon:hover::after,
+.layout-toggle-icon:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+.layout-toggle[data-layout="circle"] .layout-toggle-circle,
+.layout-toggle[data-layout="piano"] .layout-toggle-piano {
+    opacity: 1;
+    transform: scale(1.08);
+}
+
+.layout-toggle-switch {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.layout-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(#f8f9ff, #dfe5ff);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    transition: transform 0.22s ease;
+}
+
+.layout-toggle[data-layout="piano"] .layout-toggle-thumb {
+    transform: translateX(20px);
+}
+
+.layout-toggle[data-layout="piano"] .layout-toggle-switch {
+    background: rgba(104,117,255,0.55);
+}
+
+.stop {
+    background: #542d3a;
+}
+
+.stop:hover {
+    background: #71394b;
+}
+
+.volume-option {
+    justify-content: center;
+    width: min(100%, 260px);
+    padding-top: 4px;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.volume-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    color: #dfe3f0;
+    filter: drop-shadow(0 0 6px rgba(104,117,255,0.45));
+}
+
+.volume-slider-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.volume-bubble {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(17, 20, 33, 0.95);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    color: #f5f5f7;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    white-space: nowrap;
+}
+
+.volume-bubble.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.volume-option input[type="range"] {
+    width: min(100%, 200px);
+}
+
+/* =========================
+   CIRCLE
+========================= */
+
+.circle {
+    position: relative;
+    container-type: inline-size;
+    width: var(--circle-size, min(90vw, 400px));
+    aspect-ratio: 1;
+    margin: auto;
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle,
+            #161a2b 0 31%,
+            #20263c 32% 33%,
+            #111421 34% 100%
+        );
+    box-shadow:
+        0 0 60px rgba(70, 90, 170, 0.12),
+        inset 0 0 40px rgba(0,0,0,0.5);
+    flex-shrink: 1;
+}
+
+.circle::before {
+    content: "";
+    position: absolute;
+    inset: 9%;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 50%;
+}
+
+.circle.layout-piano {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: var(--piano-width, var(--circle-size, min(90vw, 400px)));
+    height: var(--circle-size, min(90vw, 400px));
+    aspect-ratio: auto;
+    padding: 18px 12px 12px;
+    border-radius: 22px;
+    background:
+        radial-gradient(
+            circle,
+            #161a2b 0 31%,
+            #20263c 32% 33%,
+            #111421 34% 100%
+        );
+}
+
+.circle.layout-piano::before {
+    inset: 5%;
+}
+
+.circle.layout-piano .center {
+    display: none;
+}
+
+.circle.layout-piano .piano {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.circle.layout-piano .white-key-wrap {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+}
+
+.circle.layout-piano .note {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    border-radius: 0 0 8px 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: filter 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.circle.layout-piano .note .frequency {
+    display: none;
+}
+
+.circle.layout-piano .note .name {
+    font-size: clamp(10px, 2.6vw, 15px);
+    font-weight: 600;
+}
+
+.circle.layout-piano .note.white-key {
+    width: 100%;
+    height: 100%;
+    min-height: 110px;
+    padding-bottom: 10px;
+    background: linear-gradient(#fbfbfd, #dedfe9);
+    border: 1px solid rgba(10, 12, 25, 0.35);
+    color: #20263c;
+    box-shadow:
+        inset 0 -10px 14px rgba(0,0,0,0.08),
+        0 3px 4px rgba(0,0,0,0.25);
+}
+
+.circle.layout-piano .note.white-key.active {
+    background: linear-gradient(#8d97ff, #6875ff);
+    color: #fff;
+    box-shadow:
+        inset 0 -10px 14px rgba(0,0,0,0.15),
+        0 0 20px rgba(104,117,255,0.55);
+}
+
+.circle.layout-piano .note.black-key {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translateX(50%);
+    width: 58%;
+    height: 60%;
+    min-height: 0;
+    padding-bottom: 8px;
+    background: linear-gradient(#2c2c33, #08080a);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #f5f5f7;
+    z-index: 2;
+    box-shadow:
+        0 6px 10px rgba(0,0,0,0.5),
+        inset 0 -6px 8px rgba(255,255,255,0.05);
+}
+
+.circle.layout-piano .note.black-key.active {
+    background: linear-gradient(#8891ff, #4a54cc);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow:
+        0 6px 10px rgba(0,0,0,0.5),
+        0 0 18px rgba(104,117,255,0.6);
+}
+
+.note {
+    position: absolute;
+    width: 13cqw;
+    height: 13cqw;
+    margin: -6.5cqw;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: #272d45;
+    color: #dfe3f0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    user-select: none;
+
+    transition:
+        transform 0.15s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.circle:not(.layout-piano) .note:hover {
+    background: #363d5c;
+    transform: scale(1.08);
+    z-index: 2;
+}
+
+.note .name {
+    font-size: clamp(11px, 3.4cqw, 20px);
+    font-weight: 700;
+}
+
+.note .frequency {
+    margin-top: 2px;
+    color: #858ba3;
+    font-size: clamp(7px, 1.7cqw, 10px);
+}
+
+@supports not (container-type: inline-size) {
+    .note {
+        width: 76px;
+        height: 76px;
+        margin: -38px;
+    }
+
+    .note .name {
+        font-size: 20px;
+    }
+
+    .note .frequency {
+        font-size: 10px;
+    }
+}
+
+.note.active {
+    background: #6875ff;
+    color: white;
+    border-color: #aab1ff;
+    box-shadow:
+        0 0 20px rgba(104,117,255,0.55),
+        0 0 50px rgba(104,117,255,0.18);
+}
+
+.note.active .frequency {
+    color: #dfe2ff;
+}
+
+.center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width: clamp(90px, 28.3cqw, 170px);
+    height: clamp(90px, 28.3cqw, 170px);
+    border-radius: 50%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    background: #111421;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 0 35px rgba(0,0,0,0.5);
+
+    pointer-events: none;
+}
+
+@supports not (container-type: inline-size) {
+    .center {
+        width: 170px;
+        height: 170px;
+    }
+}
+
+.center-note {
+    font-size: clamp(18px, 5.3cqw, 32px);
+    font-weight: 700;
+}
+
+.center-label {
+    margin-top: 4px;
+    color: #858ba3;
+    font-size: clamp(9px, 2cqw, 12px);
+}
+
+.status {
+    min-height: 25px;
+    margin: 0;
+    color: #858ba3;
+    font-size: 13px;
+}
+
+/* =========================
+   BREAKPOINTS
+========================= */
+
+/* Phones */
+@media (max-width: 600px) {
+    input[type="range"] {
+        width: 120px;
+    }
+
+    .metro-options {
+        gap: 12px;
+    }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+    .metro-controls {
+        gap: 6px;
+    }
+
+    button {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    .octave,
+    .metro-start {
+        min-width: 78px;
+    }
+}
+
+/*
+    Fallback compaction for short viewports (landscape phones, small
+    windows) where even a minimum-size circle wouldn't otherwise fit.
+    Applied by fitLayout() in JS, which measures actual overflow
+    rather than guessing from viewport height alone.
+*/
+
+.app.compact {
+    gap: 4px;
+}
+
+.app.compact .metronome {
+    padding: 6px 14px;
+}
+
+.app.compact .metro-title {
+    margin-bottom: 3px;
+}
+
+.app.compact .bpm-display {
+    margin-bottom: 3px;
+}
+
+.app.compact .beats {
+    margin-top: 5px;
+}
+
+.app.compact .status {
+    min-height: 0;
+}
+
+.app.ultra-compact .subtitle,
+.app.ultra-compact .metro-title {
+    display: none;
+}
+
+.app.ultra-compact h1 {
+    font-size: 18px;
+}
+
+.app.ultra-compact .metro-controls,
+.app.ultra-compact .metro-options {
+    gap: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+<div class="panel">
+
+    <div class="app-header">
+        <h1>Drone + Metronome</h1>
+
+        <button
+            id="infoButton"
+            class="info-button"
+            type="button"
+            aria-label="Tips and instructions"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="infoPanel"
+            onclick="toggleInfoPanel()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <line x1="12" y1="11" x2="12" y2="16.5"></line>
+                <circle cx="12" cy="7.3" r="1" fill="currentColor" stroke="none"></circle>
+            </svg>
+        </button>
+
+        <div
+            class="info-panel"
+            id="infoPanel"
+            role="dialog"
+            aria-label="Tips and instructions"
+            hidden>
+            <p class="info-lead">Click notes to toggle sustained drones.</p>
+            <dl class="info-shortcuts">
+                <div>
+                    <dt><kbd>C</kbd><kbd>D</kbd><kbd>E</kbd><kbd>F</kbd><kbd>G</kbd><kbd>A</kbd><kbd>B</kbd></dt>
+                    <dd>Toggle notes<span class="info-hint">Shift for ♯/♭</span></dd>
+                </div>
+                <div>
+                    <dt><kbd>←</kbd><kbd>→</kbd></dt>
+                    <dd>Transpose playing notes</dd>
+                </div>
+                <div>
+                    <dt><kbd>↑</kbd><kbd>↓</kbd></dt>
+                    <dd>Volume</dd>
+                </div>
+                <div>
+                    <dt><kbd>+</kbd><kbd>−</kbd></dt>
+                    <dd>Octave</dd>
+                </div>
+                <div>
+                    <dt><kbd>Esc</kbd></dt>
+                    <dd>Stop all</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <div class="subtitle"></div>
+
+
+    <!-- =========================
+         METRONOME
+    ========================== -->
+
+    <div class="metronome">
+
+        <div class="metro-title">Metronome</div>
+
+        <div class="bpm-display">
+            <span class="bpm-number" id="bpmDisplay">80</span>
+            <span class="bpm-label">BPM</span>
+        </div>
+
+        <div class="metro-controls">
+
+            <button onclick="changeBPM(-5)">−5</button>
+
+            <button
+                class="metro-start"
+                id="metroButton"
+                onclick="toggleMetronome()">
+                Start
+            </button>
+
+            <button onclick="changeBPM(5)">+5</button>
+
+            <button
+                class="tap"
+                onclick="tapTempo()">
+                Tap Tempo
+            </button>
+
+        </div>
+
+        <div class="metro-options">
+
+            <div class="option">
+                <span>Tempo</span>
+                <input
+                    id="tempoSlider"
+                    type="range"
+                    min="30"
+                    max="240"
+                    value="80"
+                    oninput="setBPM(this.value)">
+            </div>
+
+            <div class="option">
+                <span>Beat</span>
+
+                <select id="subdivision">
+                    <option value="1">Quarter</option>
+                    <option value="2">Eighth</option>
+                    <option value="4">16th</option>
+                </select>
+            </div>
+
+            <div class="option">
+                <span>Time</span>
+
+                <select
+                    id="timeSignature"
+                    onchange="setTimeSignature(this.value)">
+                    <option value="2">2/4</option>
+                    <option value="3">3/4</option>
+                    <option value="4" selected>4/4</option>
+                    <option value="5">5/4</option>
+                    <option value="6">6/8</option>
+                    <option value="7">7/8</option>
+                    <option value="9">9/8</option>
+                    <option value="12">12/8</option>
+                </select>
+            </div>
+
+        </div>
+
+        <div class="beats" id="beats"></div>
+
+    </div>
+
+
+    <!-- =========================
+         OCTAVE CONTROLS
+    ========================== -->
+
+    <div class="controls">
+
+        <div class="controls-row">
+            <button onclick="changeOctave(-1)">
+                − Octave
+            </button>
+
+            <button
+                class="octave"
+                id="octaveButton">
+                Octave 4
+            </button>
+
+            <button onclick="changeOctave(1)">
+                + Octave
+            </button>
+
+            <button
+                class="stop"
+                onclick="stopAll()">
+                Stop Drones
+            </button>
+
+            <button
+                id="layoutToggle"
+                class="layout-toggle"
+                type="button"
+                aria-label="Toggle circle and piano layout"
+                aria-pressed="false"
+                data-layout="circle"
+                onclick="toggleLayout()">
+                <span class="layout-toggle-visual">
+                    <span class="layout-toggle-icon layout-toggle-circle" aria-hidden="true" data-tooltip="Circle of Fifths">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                            <circle cx="12" cy="12" r="8.4"></circle>
+                            <circle cx="12" cy="4.4" r="1.1" fill="currentColor" stroke="none"></circle>
+                            <circle cx="18.6" cy="8.2" r="1.1" fill="currentColor" stroke="none"></circle>
+                            <circle cx="18.6" cy="15.8" r="1.1" fill="currentColor" stroke="none"></circle>
+                            <circle cx="12" cy="19.6" r="1.1" fill="currentColor" stroke="none"></circle>
+                            <circle cx="5.4" cy="15.8" r="1.1" fill="currentColor" stroke="none"></circle>
+                            <circle cx="5.4" cy="8.2" r="1.1" fill="currentColor" stroke="none"></circle>
+                        </svg>
+                    </span>
+                    <span class="layout-toggle-switch" aria-hidden="true">
+                        <span class="layout-toggle-thumb"></span>
+                    </span>
+                    <span class="layout-toggle-icon layout-toggle-piano" aria-hidden="true" data-tooltip="Keyboard">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="5.5" width="18" height="13" rx="1.5"></rect>
+                            <line x1="7.4" y1="5.5" x2="7.4" y2="13.2"></line>
+                            <line x1="11.8" y1="5.5" x2="11.8" y2="13.2"></line>
+                            <line x1="16.2" y1="5.5" x2="16.2" y2="13.2"></line>
+                        </svg>
+                    </span>
+                </span>
+            </button>
+        </div>
+
+        <div class="controls-row controls-row--volume">
+            <div class="option volume-option">
+                <div class="volume-control">
+                    <span class="volume-icon" aria-label="Volume">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 9.5v5h3.6l5 4v-13l-5 4H4z" fill="currentColor" stroke="none"></path>
+                            <path d="M16.2 8.8a5 5 0 0 1 0 6.4"></path>
+                            <path d="M19 6.2a8.7 8.7 0 0 1 0 11.6"></path>
+                        </svg>
+                    </span>
+                    <div class="volume-slider-wrap">
+                        <span class="volume-bubble visible" id="volumeBubble">50%</span>
+                        <input
+                            id="volumeSlider"
+                            type="range"
+                            min="0"
+                            max="100"
+                            value="50"
+                            oninput="setVolumeSlider(this.value)"
+                            onpointerdown="showVolumeBubble()"
+                            onpointerup="hideVolumeBubble()"
+                            onpointerleave="hideVolumeBubble()"
+                            onfocus="showVolumeBubble()"
+                            onblur="hideVolumeBubble()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="status" id="status"></div>
+
+</div>
+
+
+    <!-- =========================
+         CIRCLE OF FIFTHS
+    ========================== -->
+
+    <div class="circle" id="circle">
+
+        <div class="center">
+            <div
+                class="center-note"
+                id="centerNote">
+                —
+            </div>
+
+            <div class="center-label">
+                ACTIVE DRONES
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+/* ============================================================
+   AUDIO ENGINE
+============================================================ */
+
+let audioContext = null;
+
+function initAudio() {
+
+    if (!audioContext) {
+        audioContext = new (
+            window.AudioContext ||
+            window.webkitAudioContext
+        )();
+    }
+
+    if (audioContext.state === "suspended") {
+        audioContext.resume();
+    }
+}
+
+
+/* ============================================================
+   DRONE
+============================================================ */
+
+const notes = [
+    "C",
+    "G",
+    "D",
+    "A",
+    "E",
+    "B",
+    "F#",
+    "Db",
+    "Ab",
+    "Eb",
+    "Bb",
+    "F"
+];
+
+let currentLayout = "circle";
+
+const semitones = {
+    C: 0,
+    "Db": 1,
+    D: 2,
+    "Eb": 3,
+    E: 4,
+    F: 5,
+    "F#": 6,
+    G: 7,
+    "Ab": 8,
+    A: 9,
+    "Bb": 10,
+    B: 11
+};
+
+const NOTE_BY_SEMITONE =
+    Object.keys(semitones).reduce((acc, note) => {
+
+        acc[semitones[note]] = note;
+
+        return acc;
+    }, []);
+
+/*
+    The piano layout spans a full octave plus a fifth (C to the G
+    a fifth above the next C), in actual keyboard order (chromatic)
+    rather than the circle-of-fifths order `notes` uses for the
+    wheel. Each entry is a white key; octaveOffset marks whether it
+    belongs to the base octave (0) or the extra octave-and-a-fifth
+    span above it (1).
+*/
+const PIANO_RANGE = [
+    { note: "C", octaveOffset: 0 },
+    { note: "D", octaveOffset: 0 },
+    { note: "E", octaveOffset: 0 },
+    { note: "F", octaveOffset: 0 },
+    { note: "G", octaveOffset: 0 },
+    { note: "A", octaveOffset: 0 },
+    { note: "B", octaveOffset: 0 },
+    { note: "C", octaveOffset: 1 },
+    { note: "D", octaveOffset: 1 },
+    { note: "E", octaveOffset: 1 },
+    { note: "F", octaveOffset: 1 },
+    { note: "G", octaveOffset: 1 }
+];
+
+const PIANO_BLACK_KEY_AFTER = {
+    C: "Db",
+    D: "Eb",
+    F: "F#",
+    G: "Ab",
+    A: "Bb"
+};
+
+/*
+    Note identifiers (used as drones{}/semitones{} keys, notes[]
+    indices, etc.) stay plain ASCII — only the displayed label
+    swaps in the proper sharp/flat glyphs. Trailing apostrophes
+    mark a key from a higher octave-and-a-fifth span (e.g. "C'"
+    is one octave above "C", "C''" two octaves above) and trailing
+    commas mark a lower one (e.g. "C," is one octave below "C"),
+    so keys at any octave can be told apart as independent,
+    simultaneously-playable notes. This also lets transposeActive()
+    carry a note into a neighboring octave instead of wrapping it
+    back in place.
+*/
+
+function formatNoteLabel(note) {
+
+    return note
+        .replace("#", "♯")
+        .replace(/b$/, "♭");
+}
+
+
+function makePianoKeyId(note, octaveOffset) {
+
+    if (octaveOffset > 0) return note + "'".repeat(octaveOffset);
+    if (octaveOffset < 0) return note + ",".repeat(-octaveOffset);
+    return note;
+}
+
+
+function parsePianoKeyId(id) {
+
+    const apostropheMatch = id.match(/'+$/);
+
+    if (apostropheMatch) {
+        return {
+            note: id.slice(0, -apostropheMatch[0].length),
+            octaveOffset: apostropheMatch[0].length
+        };
+    }
+
+    const commaMatch = id.match(/,+$/);
+
+    if (commaMatch) {
+        return {
+            note: id.slice(0, -commaMatch[0].length),
+            octaveOffset: -commaMatch[0].length
+        };
+    }
+
+    return { note: id, octaveOffset: 0 };
+}
+
+
+let octave = 4;
+
+let masterVolume = 0.5;
+
+const BASE_GAIN = 0.16;
+
+const drones = {};
+
+
+function getFrequency(note, octave) {
+
+    const midi =
+        (octave + 1) * 12 +
+        semitones[note];
+
+    return 440 *
+        Math.pow(2, (midi - 69) / 12);
+}
+
+
+function startDrone(id) {
+
+    initAudio();
+
+    const { note, octaveOffset } =
+        parsePianoKeyId(id);
+
+    const frequency =
+        getFrequency(note, octave + octaveOffset);
+
+    const now =
+        audioContext.currentTime;
+
+    const master =
+        audioContext.createGain();
+
+    master.gain.setValueAtTime(
+        0,
+        now
+    );
+
+    master.gain.linearRampToValueAtTime(
+        BASE_GAIN * masterVolume,
+        now + 1.5
+    );
+
+
+    const filter =
+        audioContext.createBiquadFilter();
+
+    filter.type = "lowpass";
+
+    filter.frequency.value =
+        Math.min(frequency * 5, 5000);
+
+    filter.Q.value = 0.5;
+
+
+    const fundamental =
+        audioContext.createOscillator();
+
+    fundamental.type = "sine";
+
+    fundamental.frequency.value =
+        frequency;
+
+
+    const fifth =
+        audioContext.createOscillator();
+
+    fifth.type = "sine";
+
+    fifth.frequency.value =
+        frequency * 1.5;
+
+
+    const fifthGain =
+        audioContext.createGain();
+
+    fifthGain.gain.value = 0.18;
+
+
+    fundamental.connect(filter);
+
+    fifth.connect(fifthGain);
+
+    fifthGain.connect(filter);
+
+    filter.connect(master);
+
+    master.connect(
+        audioContext.destination
+    );
+
+
+    fundamental.start();
+
+    fifth.start();
+
+
+    drones[id] = {
+        fundamental,
+        fifth,
+        master,
+        filter
+    };
+}
+
+
+function stopDrone(note) {
+
+    const drone = drones[note];
+
+    if (!drone) return;
+
+    const now =
+        audioContext.currentTime;
+
+    drone.master.gain.cancelScheduledValues(now);
+
+    drone.master.gain.setValueAtTime(
+        drone.master.gain.value,
+        now
+    );
+
+    drone.master.gain.linearRampToValueAtTime(
+        0,
+        now + 0.8
+    );
+
+    drone.fundamental.stop(
+        now + 0.9
+    );
+
+    drone.fifth.stop(
+        now + 0.9
+    );
+
+    delete drones[note];
+}
+
+
+function toggleNote(note) {
+
+    if (drones[note]) {
+        stopDrone(note);
+    } else {
+        startDrone(note);
+    }
+
+    updateNoteStyles();
+    updateStatus();
+}
+
+
+function stopAll() {
+
+    Object.keys(drones).forEach(
+        stopDrone
+    );
+
+    updateNoteStyles();
+    updateStatus();
+}
+
+
+function stopEverything() {
+
+    stopAll();
+
+    if (metronomeRunning) {
+        stopMetronome();
+    }
+}
+
+function restartDrones(){
+
+    const noteList= Object.keys(drones);
+    Object.keys(drones).forEach(
+        stopDrone
+    );
+    
+    //loop through noteList and run startDrone(note)
+    for(let note of noteList){
+        startDrone(note)
+    }
+}
+
+/* ============================================================
+   OCTAVE
+============================================================ */
+
+function changeOctave(amount) {
+
+    octave += amount;
+
+    octave =
+        Math.max(1, Math.min(7, octave));
+
+    document.getElementById(
+        "octaveButton"
+    ).textContent =
+        `Octave ${octave}`;
+
+    restartDrones();
+    renderNotes();
+}
+
+
+/* ============================================================
+   CIRCLE
+============================================================ */
+
+function updateLayoutButton() {
+
+    const button =
+        document.getElementById("layoutToggle");
+
+    if (!button) return;
+
+    const isPiano = currentLayout === "piano";
+    button.dataset.layout = currentLayout;
+    button.setAttribute("aria-pressed", String(isPiano));
+    button.setAttribute(
+        "aria-label",
+        isPiano ? "Switch to circle of fifths layout" : "Switch to keyboard layout"
+    );
+}
+
+
+function setLayout(layout) {
+
+    if (currentLayout === layout) return;
+
+    currentLayout = layout;
+
+    renderNotes();
+    updateLayoutButton();
+}
+
+
+function toggleLayout() {
+    setLayout(currentLayout === "circle" ? "piano" : "circle");
+}
+
+
+/* ============================================================
+   INFO PANEL (tips & instructions)
+============================================================ */
+
+function setInfoPanelOpen(open) {
+
+    const button = document.getElementById("infoButton");
+    const panel = document.getElementById("infoPanel");
+
+    if (!button || !panel) return;
+
+    panel.hidden = !open;
+    button.setAttribute("aria-expanded", String(open));
+}
+
+function toggleInfoPanel() {
+
+    const panel = document.getElementById("infoPanel");
+
+    if (!panel) return;
+
+    setInfoPanelOpen(panel.hidden);
+}
+
+document.addEventListener("click", (event) => {
+
+    const panel = document.getElementById("infoPanel");
+    const button = document.getElementById("infoButton");
+
+    if (!panel || panel.hidden) return;
+
+    if (panel.contains(event.target) || button.contains(event.target)) {
+        return;
+    }
+
+    setInfoPanelOpen(false);
+});
+
+
+function renderNotes() {
+
+    const circle =
+        document.getElementById("circle");
+
+    if (!circle) return;
+
+    circle.classList.toggle(
+        "layout-piano",
+        currentLayout === "piano"
+    );
+
+    document
+        .querySelectorAll(".note")
+        .forEach(el => el.remove());
+
+    document
+        .querySelectorAll(".piano")
+        .forEach(el => el.remove());
+
+    if (currentLayout === "piano") {
+
+        const piano =
+            document.createElement("div");
+
+        piano.className = "piano";
+
+        const makeKey = (note, kind, octaveOffset) => {
+
+            const id =
+                makePianoKeyId(note, octaveOffset);
+
+            const button =
+                document.createElement("button");
+
+            button.className = `note ${kind}`;
+            button.dataset.note = id;
+
+            button.innerHTML = `
+                <div class="name">
+                    ${formatNoteLabel(note)}
+                </div>
+            `;
+
+            button.onclick =
+                () => toggleNote(id);
+
+            return button;
+        };
+
+        PIANO_RANGE.forEach((key, index) => {
+
+            const wrap =
+                document.createElement("div");
+
+            wrap.className = "white-key-wrap";
+
+            wrap.appendChild(
+                makeKey(key.note, "white-key", key.octaveOffset)
+            );
+
+            const blackNote =
+                PIANO_BLACK_KEY_AFTER[key.note];
+
+            const hasNextKey =
+                index < PIANO_RANGE.length - 1;
+
+            if (blackNote && hasNextKey) {
+                wrap.appendChild(
+                    makeKey(blackNote, "black-key", key.octaveOffset)
+                );
+            }
+
+            piano.appendChild(wrap);
+        });
+
+        circle.appendChild(piano);
+        updateNoteStyles();
+        updateLayoutButton();
+        return;
+    }
+
+    const radius =
+        window.innerWidth <= 500
+            ? 42
+            : 43;
+
+    notes.forEach((note, index) => {
+
+        const angle =
+            (index * 30 - 90) *
+            Math.PI / 180;
+
+        const x =
+            50 +
+            radius *
+            Math.cos(angle);
+
+        const y =
+            50 +
+            radius *
+            Math.sin(angle);
+
+        const button =
+            document.createElement("div");
+
+        button.className = "note";
+        button.dataset.note = note;
+
+        button.style.left =
+            `${x}%`;
+
+        button.style.top =
+            `${y}%`;
+
+        button.innerHTML = `
+            <div class="name">
+                ${formatNoteLabel(note)}
+            </div>
+        `;
+
+        button.onclick =
+            () => toggleNote(note);
+
+        circle.appendChild(button);
+    });
+
+    updateNoteStyles();
+    updateLayoutButton();
+}
+
+
+function updateNoteStyles() {
+
+    document
+        .querySelectorAll(".note")
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                !!drones[button.dataset.note]
+            );
+        });
+}
+
+
+function transposeActive(amount) {
+
+    const activeNotes =
+        Object.keys(drones);
+
+    if (!activeNotes.length) return;
+
+    /*
+        Shift every currently-playing note by the same number of
+        steps, so the interval(s) between them are preserved.
+        Stop-then-restart (rather than a pitch glide) matches how
+        changeOctave() already re-pitches playing drones.
+
+        The step size depends on layout: the keyboard (piano) layout
+        is chromatic, so a step is one semitone; the circle-of-fifths
+        layout steps around that wheel instead, matching what ←/→
+        visually move you along on screen.
+
+        On the piano layout, stepping past B going up (or past C
+        going down) should land on the next octave's C, not wrap
+        back onto the same one — so the octave offset is carried
+        whenever the semitone index overflows or underflows.
+    */
+
+    const usesSemitoneStep =
+        currentLayout === "piano";
+
+    const transposedNotes =
+        activeNotes.map(id => {
+
+            const { note, octaveOffset } =
+                parsePianoKeyId(id);
+
+            const index =
+                usesSemitoneStep
+                    ? semitones[note]
+                    : notes.indexOf(note);
+
+            const stepCount =
+                usesSemitoneStep ? 12 : notes.length;
+
+            const rawIndex =
+                index + amount;
+
+            const newIndex =
+                ((rawIndex % stepCount) + stepCount) % stepCount;
+
+            const octaveCarry =
+                Math.floor(rawIndex / stepCount);
+
+            const newNote =
+                usesSemitoneStep
+                    ? NOTE_BY_SEMITONE[newIndex]
+                    : notes[newIndex];
+
+            const newOctaveOffset =
+                usesSemitoneStep
+                    ? octaveOffset + octaveCarry
+                    : octaveOffset;
+
+            return makePianoKeyId(
+                newNote,
+                newOctaveOffset
+            );
+        });
+
+    activeNotes.forEach(stopDrone);
+
+    transposedNotes.forEach(startDrone);
+
+    updateNoteStyles();
+    updateStatus();
+}
+
+
+function setMasterVolume(amount) {
+
+    masterVolume =
+        Math.max(0, Math.min(1, masterVolume + amount));
+
+    applyMasterVolume();
+    updateVolumeDisplay();
+}
+
+
+function setVolumeSlider(value) {
+
+    masterVolume =
+        Math.max(0, Math.min(1, Number(value) / 100));
+
+    applyMasterVolume();
+    updateVolumeDisplay();
+}
+
+
+function applyMasterVolume() {
+
+    if (!audioContext) return;
+
+    const now =
+        audioContext.currentTime;
+
+    Object.values(drones).forEach(drone => {
+
+        drone.master.gain.cancelScheduledValues(now);
+
+        drone.master.gain.setValueAtTime(
+            drone.master.gain.value,
+            now
+        );
+
+        drone.master.gain.linearRampToValueAtTime(
+            BASE_GAIN * masterVolume,
+            now + 0.15
+        );
+    });
+}
+
+
+function showVolumeBubble() {
+
+    const bubble =
+        document.getElementById("volumeBubble");
+
+    if (bubble) {
+        bubble.classList.add("visible");
+    }
+}
+
+function hideVolumeBubble() {
+
+    const bubble =
+        document.getElementById("volumeBubble");
+
+    if (bubble) {
+        bubble.classList.remove("visible");
+    }
+}
+
+function updateVolumeDisplay() {
+
+    const percent =
+        Math.round(masterVolume * 100);
+
+    const bubble =
+        document.getElementById("volumeBubble");
+
+    if (bubble) {
+        bubble.textContent = `${percent}%`;
+    }
+
+    document.getElementById(
+        "volumeSlider"
+    ).value = percent;
+}
+
+
+function updateStatus() {
+
+    const active =
+        Object.keys(drones);
+
+    const status =
+        document.getElementById("status");
+
+    if (!active.length) {
+
+        status.textContent = "";
+
+    } else {
+
+        status.textContent =
+            `Playing: ${active.map(formatNoteLabel).join(" • ")}`;
+    }
+
+
+    document.getElementById(
+        "centerNote"
+    ).textContent =
+        active.length || "—";
+}
+
+
+/* ============================================================
+   METRONOME
+============================================================ */
+
+let bpm = 80;
+
+let metronomeRunning = false;
+
+let metroTimer = null;
+
+let metroBeat = 0;
+
+let beatsPerBar = 4;
+
+let tapTimes = [];
+
+
+function renderBeats() {
+
+    const beats =
+        document.getElementById("beats");
+
+    beats.innerHTML = "";
+
+    for (let i = 0; i < beatsPerBar; i++) {
+
+        const beat =
+            document.createElement("div");
+
+        beat.className =
+            i === 0 ? "beat first" : "beat";
+
+        beats.appendChild(beat);
+    }
+}
+
+
+function setTimeSignature(value) {
+
+    beatsPerBar = Number(value);
+
+    metroBeat = 0;
+
+    renderBeats();
+    fitLayout();
+}
+
+
+/*
+    The metronome uses a repeating timer.
+    The actual click is scheduled through
+    the Web Audio API for accurate timing.
+*/
+
+function metroClick() {
+
+    initAudio();
+
+    const now =
+        audioContext.currentTime;
+
+    const oscillator =
+        audioContext.createOscillator();
+
+    const gain =
+        audioContext.createGain();
+
+
+    /*
+        The first beat of every bar
+        has a higher pitch.
+    */
+
+    if (metroBeat === 0) {
+
+        oscillator.frequency.value =
+            1200;
+
+    } else {
+
+        oscillator.frequency.value =
+            800;
+    }
+
+
+    gain.gain.setValueAtTime(
+        0.0001,
+        now
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.5,
+        now + 0.002
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        now + 0.07
+    );
+
+
+    oscillator.connect(gain);
+
+    gain.connect(
+        audioContext.destination
+    );
+
+    oscillator.start(now);
+
+    oscillator.stop(
+        now + 0.08
+    );
+
+
+    flashBeat();
+
+    metroBeat =
+        (metroBeat + 1) % beatsPerBar;
+}
+
+
+function toggleMetronome() {
+
+    if (metronomeRunning) {
+
+        stopMetronome();
+
+    } else {
+
+        startMetronome();
+    }
+}
+
+
+function startMetronome() {
+
+    initAudio();
+
+    metronomeRunning = true;
+
+    metroBeat = 0;
+
+    document.getElementById(
+        "metroButton"
+    ).textContent = "Stop";
+
+
+    metroClick();
+
+    scheduleNextClick();
+}
+
+
+function scheduleNextClick() {
+
+    if (!metronomeRunning) return;
+
+
+    const subdivision =
+        Number(
+            document.getElementById(
+                "subdivision"
+            ).value
+        );
+
+
+    const interval =
+        (60000 / bpm) /
+        subdivision;
+
+
+    metroTimer =
+        setTimeout(() => {
+
+            metroClick();
+
+            scheduleNextClick();
+
+        }, interval);
+}
+
+
+function stopMetronome() {
+
+    metronomeRunning = false;
+
+    clearTimeout(metroTimer);
+
+    metroTimer = null;
+
+    document.getElementById(
+        "metroButton"
+    ).textContent = "Start";
+
+
+    document
+        .querySelectorAll(".beat")
+        .forEach(beat => {
+
+            beat.classList.remove(
+                "active"
+            );
+        });
+}
+
+
+function flashBeat() {
+
+    const lights =
+        document.querySelectorAll(
+            ".beat"
+        );
+
+
+    /*
+        Convert subdivision into
+        visual movement.
+    */
+
+    const visualBeat =
+        metroBeat % beatsPerBar;
+
+
+    lights.forEach((light, i) => {
+
+        light.classList.toggle(
+            "active",
+            i === visualBeat
+        );
+    });
+
+
+    /*
+        Automatically turn the light off
+        shortly after the click.
+    */
+
+    setTimeout(() => {
+
+        if (!metronomeRunning) return;
+
+        lights.forEach(light => {
+            light.classList.remove(
+                "active"
+            );
+        });
+
+    }, 90);
+}
+
+
+/* ============================================================
+   BPM
+============================================================ */
+
+function setBPM(value) {
+
+    bpm =
+        Math.round(Number(value));
+
+    bpm =
+        Math.max(
+            30,
+            Math.min(240, bpm)
+        );
+
+
+    document.getElementById(
+        "bpmDisplay"
+    ).textContent = bpm;
+
+
+    document.getElementById(
+        "tempoSlider"
+    ).value = bpm;
+
+
+    /*
+        Restart timing when BPM changes.
+    */
+
+    if (metronomeRunning) {
+
+        clearTimeout(metroTimer);
+
+        scheduleNextClick();
+    }
+}
+
+
+function changeBPM(amount) {
+
+    setBPM(bpm + amount);
+}
+
+
+/* ============================================================
+   TAP TEMPO
+============================================================ */
+
+function tapTempo() {
+
+    const now =
+        performance.now();
+
+
+    /*
+        Forget taps older than 2 seconds.
+    */
+
+    tapTimes =
+        tapTimes.filter(
+            time => now - time < 2000
+        );
+
+
+    tapTimes.push(now);
+
+
+    if (tapTimes.length >= 2) {
+
+        let intervals = [];
+
+        for (
+            let i = 1;
+            i < tapTimes.length;
+            i++
+        ) {
+
+            intervals.push(
+                tapTimes[i] -
+                tapTimes[i - 1]
+            );
+        }
+
+
+        const average =
+            intervals.reduce(
+                (a, b) => a + b,
+                0
+            ) / intervals.length;
+
+
+        const tappedBPM =
+            60000 / average;
+
+
+        setBPM(
+            Math.round(tappedBPM)
+        );
+    }
+
+
+    /*
+        Keep the last 5 taps.
+    */
+
+    if (tapTimes.length > 5) {
+        tapTimes.shift();
+    }
+}
+
+
+/* ============================================================
+   RESPONSIVE LAYOUT
+============================================================ */
+
+/*
+    Sizes the circle to whatever vertical space is actually left
+    over after the header, metronome, controls and status have
+    laid themselves out — so the whole UI fits the viewport with
+    no scrolling, at any screen size or breakpoint.
+*/
+
+const MIN_COMFORTABLE_CIRCLE = 180;
+
+const MIN_CIRCLE = 130;
+
+
+function measureFit(app, panel, circle) {
+
+    const appStyle =
+        getComputedStyle(app);
+
+    const isRow =
+        appStyle.flexDirection === "row";
+
+    const paddingV =
+        parseFloat(appStyle.paddingTop) +
+        parseFloat(appStyle.paddingBottom);
+
+    let availableHeight;
+    let availableWidth;
+
+    if (isRow) {
+
+        /*
+            Panel sits beside the circle, so it only eats into
+            width, not height.
+        */
+
+        const gap =
+            parseFloat(appStyle.columnGap) || 0;
+
+        availableHeight =
+            window.innerHeight - paddingV;
+
+        availableWidth =
+            app.clientWidth -
+            panel.getBoundingClientRect().width -
+            gap;
+
+    } else {
+
+        /*
+            Panel stacks above the circle, so it eats into height.
+        */
+
+        const gap =
+            parseFloat(appStyle.rowGap) || 0;
+
+        availableHeight =
+            window.innerHeight -
+            paddingV -
+            gap -
+            panel.getBoundingClientRect().height;
+
+        availableWidth =
+            app.clientWidth;
+    }
+
+    return {
+        size:
+            Math.min(
+                availableHeight,
+                availableWidth,
+                600
+            ) - 6,
+        availableWidth
+    };
+}
+
+
+/*
+    The square circle-size was originally tuned to fit the 7 white
+    keys of a single octave comfortably. The keyboard now shows
+    PIANO_RANGE.length white keys, so scale the piano's width up
+    from that same baseline to keep each key roughly as wide as it
+    used to be, instead of squeezing more keys into the same
+    square footprint the wheel uses.
+*/
+const PIANO_BASELINE_WHITE_KEYS = 7;
+
+
+function fitLayout() {
+
+    const app =
+        document.querySelector(".app");
+
+    const panel =
+        document.querySelector(".panel");
+
+    const circle =
+        document.getElementById("circle");
+
+    if (!app || !panel || !circle) return;
+
+    /*
+        Try the normal layout first; if a comfortable circle
+        doesn't fit, progressively trim optional chrome (titles,
+        padding) before ever shrinking below a usable circle size
+        or allowing the page to scroll.
+    */
+
+    app.classList.remove("compact", "ultra-compact");
+
+    let { size, availableWidth } =
+        measureFit(app, panel, circle);
+
+    if (size < MIN_COMFORTABLE_CIRCLE) {
+        app.classList.add("compact");
+        ({ size, availableWidth } =
+            measureFit(app, panel, circle));
+    }
+
+    if (size < MIN_COMFORTABLE_CIRCLE) {
+        app.classList.add("ultra-compact");
+        ({ size, availableWidth } =
+            measureFit(app, panel, circle));
+    }
+
+    size = Math.max(MIN_CIRCLE, Math.min(size, 600));
+
+    document.documentElement.style.setProperty(
+        "--circle-size",
+        `${size}px`
+    );
+
+    /*
+        The piano needs to be wider than it is tall to give its
+        twelve white keys (an octave plus a fifth) a comfortable
+        width, unlike the circle-of-fifths wheel which stays
+        square. Scale it up from the same baseline the square
+        circle-size was tuned for, then clamp to whatever
+        horizontal space is actually available.
+    */
+
+    const desiredPianoWidth =
+        size *
+        (PIANO_RANGE.length / PIANO_BASELINE_WHITE_KEYS);
+
+    const pianoWidth =
+        Math.min(desiredPianoWidth, availableWidth);
+
+    document.documentElement.style.setProperty(
+        "--piano-width",
+        `${pianoWidth}px`
+    );
+}
+
+
+/* ============================================================
+   INIT
+============================================================ */
+
+renderNotes();
+renderBeats();
+fitLayout();
+
+window.addEventListener(
+    "resize",
+    () => {
+        renderNotes();
+        fitLayout();
+    }
+);
+
+
+/* ============================================================
+   KEYBOARD (note selection)
+============================================================ */
+
+function isFormField(el) {
+
+    return (
+        el &&
+        (el.tagName === "INPUT" ||
+            el.tagName === "SELECT" ||
+            el.tagName === "TEXTAREA")
+    );
+}
+
+/*
+    Letter keys start/stop notes directly, laid out like a piano:
+    the natural-letter key plays the white key, Shift+letter plays
+    the black key immediately above it (no black key above E or B,
+    so those have no shifted variant).
+*/
+
+const LETTER_NOTE_MAP = {
+    c: { plain: "C", shifted: "Db" },
+    d: { plain: "D", shifted: "Eb" },
+    e: { plain: "E", shifted: null },
+    f: { plain: "F", shifted: "F#" },
+    g: { plain: "G", shifted: "Ab" },
+    a: { plain: "A", shifted: "Bb" },
+    b: { plain: "B", shifted: null }
+};
+
+document.addEventListener("keydown", (event) => {
+
+    const key = event.key;
+
+    /*
+        Escape is a panic stop — it should work
+        even if a form field (e.g. the tempo
+        slider) currently has focus.
+    */
+
+    if (key === "Escape") {
+        event.preventDefault();
+        stopEverything();
+        return;
+    }
+
+    if (isFormField(document.activeElement)) return;
+
+    const letterEntry =
+        !event.ctrlKey && !event.metaKey && !event.altKey
+            ? LETTER_NOTE_MAP[key.toLowerCase()]
+            : undefined;
+
+    if (letterEntry) {
+
+        const note = event.shiftKey ? letterEntry.shifted : letterEntry.plain;
+
+        if (note) {
+            event.preventDefault();
+            initAudio();
+            toggleNote(note);
+        }
+
+        return;
+    }
+
+    if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+
+        const lowerKey = key.toLowerCase();
+
+        if (lowerKey === "o" || lowerKey === "p") {
+            event.preventDefault();
+            setLayout(lowerKey === "o" ? "circle" : "piano");
+            return;
+        }
+    }
+
+    if (
+        key !== "ArrowLeft" &&
+        key !== "ArrowRight" &&
+        key !== "ArrowUp" &&
+        key !== "ArrowDown" &&
+        key !== "+" &&
+        key !== "=" &&
+        key !== "-"
+    ) {
+        return;
+    }
+
+    event.preventDefault();
+
+    initAudio();
+
+    switch (key) {
+
+        case "ArrowLeft":
+            transposeActive(-1);
+            break;
+
+        case "ArrowRight":
+            transposeActive(1);
+            break;
+
+        case "ArrowUp":
+            setMasterVolume(0.05);
+            break;
+
+        case "ArrowDown":
+            setMasterVolume(-0.05);
+            break;
+
+        case "+":
+        case "=":
+            changeOctave(1);
+            break;
+
+        case "-":
+            changeOctave(-1);
+            break;
+    }
+});
+
+</script>
+
+</body>
+</html>
