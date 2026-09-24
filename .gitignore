@@ -1,5 +1,5 @@
 /logs
 .env
-/data/*
+/data/*.sqlite
 /public/uploads/*
 /projects
