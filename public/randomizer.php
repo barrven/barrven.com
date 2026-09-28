@@ -591,8 +591,48 @@ if (isset($_GET['mxml'])) {
       return `${slug}-major-${articulationSlug(articulation)}.musicxml`;
     }
 
+    // Natural-letter order used to count scale degrees up from the tonic
+    const SCALE_LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+    const PITCH_CLASS_SLUGS = ["C", "C-sharp", "D", "D-sharp", "E", "F", "F-sharp", "G", "G-sharp", "A", "A-sharp", "B"];
+
+    // Finds the correctly-spelled note `letterSteps` diatonic degrees above the
+    // tonic (e.g. 4 steps = a 5th, 6 steps = a 7th) and `semitoneInterval`
+    // semitones above it, falling back to a plain enharmonic spelling for
+    // notes with no single-accidental file (B♯, E♯, F♭, or a double accidental)
+    function degreeNoteSlug(tonicLetter, tonicPitchClass, letterSteps, semitoneInterval) {
+      const tonicLetterIndex = SCALE_LETTERS.indexOf(tonicLetter);
+      const degreeLetter = SCALE_LETTERS[(tonicLetterIndex + letterSteps) % 7];
+      const naturalPitchClass = NOTE_VALUES[degreeLetter];
+      const targetPitchClass = ((tonicPitchClass + semitoneInterval) % 12 + 12) % 12;
+      let diff = ((targetPitchClass - naturalPitchClass) % 12 + 12) % 12;
+      if (diff > 6) diff -= 12;
+
+      if (diff === 0) return degreeLetter;
+      if (diff === 1) {
+        if (degreeLetter === "B") return "C";
+        if (degreeLetter === "E") return "F";
+        return `${degreeLetter}-sharp`;
+      }
+      if (diff === -1) {
+        if (degreeLetter === "F") return "E";
+        return `${degreeLetter}-flat`;
+      }
+      return PITCH_CLASS_SLUGS[targetPitchClass];
+    }
+
+    // The dom7 arpeggio is rooted on the 5th scale degree (the dominant) and
+    // the dim7 arpeggio on the raised 7th (the leading tone) of the card's key
+    function arpeggioRootSlug(key, arpeggioType) {
+      if (arpeggioType === "Arpeggio") return keySlug(key);
+      const tonicLetter = key[0];
+      const tonicPitchClass = pitchClass(key);
+      return arpeggioType === "Dominant 7th"
+        ? degreeNoteSlug(tonicLetter, tonicPitchClass, 4, 7)
+        : degreeNoteSlug(tonicLetter, tonicPitchClass, 6, 11);
+    }
+
     function arpeggioFileName(key, arpeggioType) {
-      const slug = keySlug(key);
+      const slug = arpeggioRootSlug(key, arpeggioType);
       if (arpeggioType === "Dominant 7th") return `${slug}-dom7.musicxml`;
       if (arpeggioType === "Diminished 7th") return `${slug}-dim7.musicxml`;
       const quality = key.endsWith("minor") ? "minor" : "major";
@@ -685,12 +725,18 @@ if (isset($_GET['mxml'])) {
       }
     }
 
+    function slugToDisplayName(slug) {
+      return slug.replace("-sharp", "♯").replace("-flat", "♭");
+    }
+
     function openSheetMusic(li, key, form, articulation, arpeggioType) {
       document.querySelectorAll(".entry.expanded").forEach(el => el.classList.remove("expanded"));
       li.classList.add("expanded");
 
       modalTitle.textContent = form ? `${key} ${form} — ${articulation}` : `${key} — ${articulation}`;
-      arpeggioHeading.textContent = arpeggioType;
+      arpeggioHeading.textContent = arpeggioType === "Arpeggio"
+        ? arpeggioType
+        : `${arpeggioType} (${slugToDisplayName(arpeggioRootSlug(key, arpeggioType))})`;
       modal.hidden = false;
 
       renderSheet(scaleContainer, scaleFileName(key, form, articulation));
