@@ -45,6 +45,7 @@ if (isset($_GET['mxml'])) {
       --accent-hover: #2f4ac0;
       --border: #e2e0da;
       --done: #2f9e44;
+      --problem: #e03131;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -57,6 +58,7 @@ if (isset($_GET['mxml'])) {
         --accent-hover: #93a7ff;
         --border: #34343a;
         --done: #40c057;
+        --problem: #ff6b6b;
       }
     }
 
@@ -80,7 +82,26 @@ if (isset($_GET['mxml'])) {
 
     h1 {
       font-size: 1.6rem;
-      margin: 0 0 24px;
+      margin: 0;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    #filter {
+      font: inherit;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
     }
 
     #results {
@@ -214,6 +235,38 @@ if (isset($_GET['mxml'])) {
       border-color: var(--done);
     }
 
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .problem-toggle {
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .problem-toggle:hover { border-color: var(--problem); }
+
+    .entry.problem .problem-toggle {
+      color: #fff;
+      background: var(--problem);
+      border-color: var(--problem);
+    }
+
+    .empty-message {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px 0;
+    }
+
     .sheet-toggle {
       grid-column: 1 / -1;
       padding: 8px 14px;
@@ -314,7 +367,16 @@ if (isset($_GET['mxml'])) {
 </head>
 <body>
   <main>
-    <h1>Scale Randomizer</h1>
+    <div class="header-row">
+      <h1>Scale Randomizer</h1>
+      <select id="filter" aria-label="Filter scales">
+        <option value="all">All</option>
+        <option value="major">Major</option>
+        <option value="harmonic minor">Harmonic minor</option>
+        <option value="melodic minor">Melodic minor</option>
+        <option value="problem">Problem</option>
+      </select>
+    </div>
     <div class="progress">
       <div class="progress-label">
         <span id="progress-text"></span>
@@ -463,6 +525,30 @@ if (isset($_GET['mxml'])) {
 
     const completed = loadCompleted();
 
+    // Scales the player has flagged as needing extra work; filterable via the "Problem" option
+    const PROBLEM_STORAGE_KEY = "scale-randomizer-problems";
+
+    function loadProblems() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(PROBLEM_STORAGE_KEY)) || [];
+        return new Set(saved.filter(id => allIds.has(id)));
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveProblems() {
+      try {
+        localStorage.setItem(PROBLEM_STORAGE_KEY, JSON.stringify([...problems]));
+      } catch {
+        // Storage unavailable: flags last until the page is closed
+      }
+    }
+
+    const problems = loadProblems();
+
+    let currentFilter = "all";
+
     function updateProgress() {
       const done = completed.size;
       const total = allIds.size;
@@ -474,6 +560,12 @@ if (isset($_GET['mxml'])) {
       const isDone = completed.has(id);
       li.classList.toggle("done", isDone);
       li.querySelector(".done-toggle").textContent = isDone ? "Done ✓" : "Mark done";
+    }
+
+    function setProblemState(li, id) {
+      const isProblem = problems.has(id);
+      li.classList.toggle("problem", isProblem);
+      li.querySelector(".problem-toggle").textContent = isProblem ? "Flagged 🚩" : "Flag as problem";
     }
 
     // Maps a card's key/form/articulation/arpeggio onto the corresponding
@@ -507,6 +599,23 @@ if (isset($_GET['mxml'])) {
       return `${slug}-${quality}-arpeggio.musicxml`;
     }
 
+    // Restricts the key/form pool to whatever the filter dropdown currently selects
+    function filteredKeys() {
+      if (currentFilter === "major") return lists.keys.filter(key => key.endsWith("major"));
+      if (currentFilter === "harmonic minor" || currentFilter === "melodic minor") {
+        return lists.keys.filter(key => key.endsWith("minor"));
+      }
+      return lists.keys;
+    }
+
+    function filteredForms(key) {
+      const forms = key.endsWith("minor") ? lists.minorForms : [null];
+      if (currentFilter === "harmonic minor") return forms.filter(form => form === "Harmonic");
+      if (currentFilter === "melodic minor") return forms.filter(form => form === "Melodic");
+      if (currentFilter === "problem") return forms.filter(form => problems.has(progressId(key, form)));
+      return forms;
+    }
+
     // Picks COUNT distinct keys, taking unfinished key/form combos first and
     // topping up with finished ones once fewer than COUNT remain unfinished
     function chooseSet() {
@@ -523,17 +632,15 @@ if (isset($_GET['mxml'])) {
         usedIds.add(progressId(key, form));
       }
 
-      function formsFor(key) {
-        return key.endsWith("minor") ? lists.minorForms : [null];
-      }
+      const keys = filteredKeys();
 
-      for (const key of sample(lists.keys, lists.keys.length)) {
+      for (const key of sample(keys, keys.length)) {
         if (chosen.length === COUNT) break;
-        add(key, formsFor(key).filter(form => !completed.has(progressId(key, form))));
+        add(key, filteredForms(key).filter(form => !completed.has(progressId(key, form))));
       }
-      for (const key of sample(lists.keys, lists.keys.length)) {
+      for (const key of sample(keys, keys.length)) {
         if (chosen.length === COUNT) break;
-        add(key, formsFor(key));
+        add(key, filteredForms(key));
       }
       return sample(chosen, chosen.length);
     }
@@ -593,7 +700,17 @@ if (isset($_GET['mxml'])) {
     function render() {
       const results = document.getElementById("results");
       results.innerHTML = "";
-      chooseSet().forEach(({ key, form }, i) => {
+      const set = chooseSet();
+
+      if (set.length === 0) {
+        const li = document.createElement("li");
+        li.className = "empty-message";
+        li.textContent = "No scales match this filter yet.";
+        results.appendChild(li);
+        return;
+      }
+
+      set.forEach(({ key, form }, i) => {
         const li = document.createElement("li");
         li.className = "entry";
         li.innerHTML = `
@@ -604,7 +721,10 @@ if (isset($_GET['mxml'])) {
             <span class="detail articulation"></span>
             <span class="detail arpeggio"></span>
           </div>
-          <button class="done-toggle" type="button"></button>
+          <div class="actions">
+            <button class="done-toggle" type="button"></button>
+            <button class="problem-toggle" type="button"></button>
+          </div>
           <button class="sheet-toggle" type="button">View sheet music</button>`;
         li.querySelector(".key").textContent = key;
         const minorForm = li.querySelector(".minor-form");
@@ -631,6 +751,15 @@ if (isset($_GET['mxml'])) {
           updateProgress();
         });
 
+        setProblemState(li, id);
+        li.querySelector(".problem-toggle").addEventListener("click", () => {
+          if (problems.has(id)) problems.delete(id);
+          else problems.add(id);
+          saveProblems();
+          setProblemState(li, id);
+          if (currentFilter === "problem") render();
+        });
+
         li.querySelector(".sheet-toggle").addEventListener("click", () => {
           openSheetMusic(li, key, form, articulation, arpeggioType);
         });
@@ -644,6 +773,11 @@ if (isset($_GET['mxml'])) {
       completed.clear();
       saveCompleted();
       updateProgress();
+      render();
+    });
+
+    document.getElementById("filter").addEventListener("change", (event) => {
+      currentFilter = event.target.value;
       render();
     });
 
