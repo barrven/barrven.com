@@ -1,3 +1,34 @@
+<?php
+declare(strict_types=1);
+
+// Serves a single MusicXML file out of data/mxml (outside the web root) so
+// the browser can fetch it by name. Any other request just renders the page.
+$mxmlDir = realpath(__DIR__ . '/../data/mxml');
+
+if (isset($_GET['mxml'])) {
+    $requested = basename((string) $_GET['mxml']);
+
+    if ($mxmlDir === false || !preg_match('/^[A-Za-z0-9.-]+\.musicxml$/', $requested)) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=UTF-8');
+        exit('Invalid file name');
+    }
+
+    $path = realpath($mxmlDir . '/' . $requested);
+
+    if ($path === false || dirname($path) !== $mxmlDir || !is_file($path)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=UTF-8');
+        exit('File not found');
+    }
+
+    header('Content-Type: application/vnd.recordare.musicxml+xml; charset=UTF-8');
+    header('Content-Length: ' . (string) filesize($path));
+    header('Cache-Control: public, max-age=86400');
+    readfile($path);
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -72,7 +103,12 @@
       display: grid;
       grid-template-columns: auto 1fr auto;
       column-gap: 16px;
+      row-gap: 12px;
       align-items: center;
+    }
+
+    .entry.expanded {
+      border-color: var(--accent);
     }
 
     .num {
@@ -154,6 +190,10 @@
       border-color: var(--done);
     }
 
+    .entry.done.expanded {
+      border-color: var(--accent);
+    }
+
     .done-toggle {
       padding: 8px 14px;
       font-size: 0.9rem;
@@ -173,6 +213,103 @@
       background: var(--done);
       border-color: var(--done);
     }
+
+    .sheet-toggle {
+      grid-column: 1 / -1;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .sheet-toggle:hover { border-color: var(--accent); }
+
+    .entry.expanded .sheet-toggle {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Sheet music modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+    }
+
+    .modal-overlay[hidden] { display: none; }
+
+    .modal {
+      background: var(--card);
+      color: var(--text);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 820px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .sheet-section + .sheet-section {
+      margin-top: 28px;
+    }
+
+    .sheet-section h3 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--muted);
+    }
+
+    .osmd-container {
+      background: #fff;
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 120px;
+      overflow-x: auto;
+      color: #1d1d1f;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -191,6 +328,26 @@
     <button id="shuffle">New set</button>
   </main>
 
+  <div class="modal-overlay" id="sheet-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+        <button class="modal-close" id="modal-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="sheet-section">
+          <h3>Scale</h3>
+          <div id="osmd-scale" class="osmd-container"></div>
+        </div>
+        <div class="sheet-section">
+          <h3 id="arpeggio-heading">Arpeggio</h3>
+          <div id="osmd-arpeggio" class="osmd-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.9.0/build/opensheetmusicdisplay.min.js"></script>
   <script>
     const COUNT = 4;
     const lists = {
@@ -319,6 +476,37 @@
       li.querySelector(".done-toggle").textContent = isDone ? "Done ✓" : "Mark done";
     }
 
+    // Maps a card's key/form/articulation/arpeggio onto the corresponding
+    // MusicXML file names under data/mxml (served through this same page
+    // via the ?mxml= endpoint, since data/ sits outside the web root).
+    function keySlug(key) {
+      const [note] = key.split(" ");
+      const letter = note[0];
+      if (note.includes("♯")) return `${letter}-sharp`;
+      if (note.includes("♭")) return `${letter}-flat`;
+      return letter;
+    }
+
+    function articulationSlug(articulation) {
+      return articulation.replace(/,\s*/g, "-").replace(/\s+/g, "-");
+    }
+
+    function scaleFileName(key, form, articulation) {
+      const slug = keySlug(key);
+      if (key.endsWith("minor")) {
+        return `${slug}-minor-${form.toLowerCase()}-${articulationSlug(articulation)}.musicxml`;
+      }
+      return `${slug}-major-${articulationSlug(articulation)}.musicxml`;
+    }
+
+    function arpeggioFileName(key, arpeggioType) {
+      const slug = keySlug(key);
+      if (arpeggioType === "Dominant 7th") return `${slug}-dom7.musicxml`;
+      if (arpeggioType === "Diminished 7th") return `${slug}-dim7.musicxml`;
+      const quality = key.endsWith("minor") ? "minor" : "major";
+      return `${slug}-${quality}-arpeggio.musicxml`;
+    }
+
     // Picks COUNT distinct keys, taking unfinished key/form combos first and
     // topping up with finished ones once fewer than COUNT remain unfinished
     function chooseSet() {
@@ -350,6 +538,58 @@
       return sample(chosen, chosen.length);
     }
 
+    // --- Sheet music modal ---
+
+    const modal = document.getElementById("sheet-modal");
+    const modalTitle = document.getElementById("modal-title");
+    const modalClose = document.getElementById("modal-close");
+    const scaleContainer = document.getElementById("osmd-scale");
+    const arpeggioContainer = document.getElementById("osmd-arpeggio");
+    const arpeggioHeading = document.getElementById("arpeggio-heading");
+
+    function closeModal() {
+      modal.hidden = true;
+      document.querySelectorAll(".entry.expanded").forEach(el => el.classList.remove("expanded"));
+    }
+
+    modalClose.addEventListener("click", closeModal);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !modal.hidden) closeModal();
+    });
+
+    async function renderSheet(container, fileName) {
+      container.textContent = "Loading…";
+      try {
+        const response = await fetch(`randomizer.php?mxml=${encodeURIComponent(fileName)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const xml = await response.text();
+        container.textContent = "";
+        const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, {
+          autoResize: true,
+          drawTitle: false,
+        });
+        await osmd.load(xml);
+        osmd.render();
+      } catch (err) {
+        container.textContent = `Couldn't load ${fileName}.`;
+      }
+    }
+
+    function openSheetMusic(li, key, form, articulation, arpeggioType) {
+      document.querySelectorAll(".entry.expanded").forEach(el => el.classList.remove("expanded"));
+      li.classList.add("expanded");
+
+      modalTitle.textContent = form ? `${key} ${form} — ${articulation}` : `${key} — ${articulation}`;
+      arpeggioHeading.textContent = arpeggioType;
+      modal.hidden = false;
+
+      renderSheet(scaleContainer, scaleFileName(key, form, articulation));
+      renderSheet(arpeggioContainer, arpeggioFileName(key, arpeggioType));
+    }
+
     function render() {
       const results = document.getElementById("results");
       results.innerHTML = "";
@@ -364,19 +604,22 @@
             <span class="detail articulation"></span>
             <span class="detail arpeggio"></span>
           </div>
-          <button class="done-toggle" type="button"></button>`;
+          <button class="done-toggle" type="button"></button>
+          <button class="sheet-toggle" type="button">View sheet music</button>`;
         li.querySelector(".key").textContent = key;
         const minorForm = li.querySelector(".minor-form");
         if (form) {
           minorForm.textContent = form;
         } else {
           // Keep an empty line (moved to the bottom) so major cards match the height of minor cards
-          minorForm.textContent = " ";
+          minorForm.textContent = " ";
           minorForm.setAttribute("aria-hidden", "true");
           minorForm.parentElement.appendChild(minorForm);
         }
-        li.querySelector(".articulation").textContent = pick(lists.articulations);
-        li.querySelector(".arpeggio").textContent = pick(lists.arpeggios);
+        const articulation = pick(lists.articulations);
+        const arpeggioType = pick(lists.arpeggios);
+        li.querySelector(".articulation").textContent = articulation;
+        li.querySelector(".arpeggio").textContent = arpeggioType;
 
         const id = progressId(key, form);
         setDoneState(li, id);
@@ -386,6 +629,10 @@
           saveCompleted();
           setDoneState(li, id);
           updateProgress();
+        });
+
+        li.querySelector(".sheet-toggle").addEventListener("click", () => {
+          openSheetMusic(li, key, form, articulation, arpeggioType);
         });
 
         results.appendChild(li);

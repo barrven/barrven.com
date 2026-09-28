@@ -12,6 +12,6 @@
     {
         "title": "Scale Randomizer",
         "description": "Provides list of four scales at a time, to play from memory. Includes suggested articulations, and arpeggio to play with the scale. Also shows progress bar for completing all the scales.",
-        "link": "randomizer.html"
+        "link": "randomizer.php"
     }
 ]
