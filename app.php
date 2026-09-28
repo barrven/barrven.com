@@ -344,7 +344,7 @@ if (is_readable($projectsPath)) {
         <section class="view" id="view-projects" data-view="projects">
             <p class="eyebrow">Code</p>
             <h1>Projects</h1>
-            <p class="lede">A few things I've built.</p>
+            <p class="lede">Here are some fun things I made that are also maybe useful.</p>
             <?php if (empty($projects)): ?>
                 <p class="lede">No projects listed yet.</p>
             <?php else: ?>
@@ -360,7 +360,7 @@ if (is_readable($projectsPath)) {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-            <p class="placeholder-note">More views (blog, contact, etc.) will show up in the menu above as they're built.</p>
+            <!-- <p class="placeholder-note">More views (blog, contact, etc.) will show up in the menu above as they're built.</p> -->
         </section>
     </main>
 
