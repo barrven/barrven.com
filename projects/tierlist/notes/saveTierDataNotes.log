@@ -1,0 +1,50 @@
+// This is the format sent by the javascript fetch
+{
+    "list_id":"30",
+    "tierData":{
+        "S":[
+                "public/users/barry/13ff808d62cf068475c7dcbc772056eb.jpg",
+                "public/users/barry/a807fe009d9f4b5b31b6a626cf5afc29.mp4"
+            ],
+        "A":[
+                "public/users/barry/993c70a5532bdc7a16dfb48db0df4cf8.jpg"
+            ],
+        "B":[],
+        "C":[
+            "public/users/barry/eca9b3faed1eeb38e77502cfa792f394.jpg",
+            "public/users/barry/989a725ab4d7350b34f62a36d706aa52.jpg"],
+        "D":[
+            "public/users/barry/52264b2c63fb87861fcbcdbc61310ba5.jpg"],
+        "L":[
+            "public/users/barry/399db5d988bfb0c8c4cf2c6d97cf69b2.jpg",
+            "public/users/barry/9f50213e9aaa658215716b28edff48b9.jpg"
+            ]
+    }
+}
+
+// gets converted to this format before saving to db.
+
+[2026-01-13 06:53:19] S
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] 13ff808d62cf068475c7dcbc772056eb.jpg
+[2026-01-13 06:53:19] S
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] a807fe009d9f4b5b31b6a626cf5afc29.mp4
+[2026-01-13 06:53:19] A
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] 993c70a5532bdc7a16dfb48db0df4cf8.jpg
+[2026-01-13 06:53:19] C
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] eca9b3faed1eeb38e77502cfa792f394.jpg
+[2026-01-13 06:53:19] C
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] 989a725ab4d7350b34f62a36d706aa52.jpg
+[2026-01-13 06:53:19] D
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] 52264b2c63fb87861fcbcdbc61310ba5.jpg
+[2026-01-13 06:53:19] L
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] 399db5d988bfb0c8c4cf2c6d97cf69b2.jpg
+[2026-01-13 06:53:19] L
+[2026-01-13 06:53:19] 30
+[2026-01-13 06:53:19] 9f50213e9aaa658215716b28edff48b9.jpg
