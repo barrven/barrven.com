@@ -1,0 +1,232 @@
+/* Tier List Maker. Layout and colours build on the tokens/components in
+   core/site.css; only the tier colours are specific to this module. */
+
+/* On <body> (class set by the layout) so the media viewer and dialogs,
+   which sit outside .tierlist-editor, get the tier colours too. */
+.module-tierlist {
+    --tier-s: #818cf8;
+    --tier-a: #60a5fa;
+    --tier-b: #5eead4;
+    --tier-c: #86efac;
+    --tier-d: #fde047;
+}
+
+/* ---- Shared page header row ---- */
+.tierlist-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.tierlist-toolbar .page-title { margin: 0; }
+
+/* ---- Login ---- */
+.tierlist-login {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 32px;
+}
+
+.tierlist-login .muted { margin: 0 0 24px; }
+
+/* ---- Dashboard ---- */
+.tierlist-dashboard .btn-row { margin-bottom: 24px; }
+
+.lists-panel {
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lists-panel > p { margin: 0; }
+
+.list-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+}
+
+.lists-panel .list-row .btn-row { margin: 0; }
+
+.list-name { font-size: 1.05rem; font-weight: 500; }
+
+/* ---- Tier rows ---- */
+.tier-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 48px;
+}
+
+.tier-row {
+    display: flex;
+    align-items: stretch;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.tier-label {
+    width: 88px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--on-accent);
+    flex-shrink: 0;
+}
+
+.tier-content {
+    flex-grow: 1;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    min-height: 76px;
+}
+
+.tier-s .tier-label, .tier-btn.tier-s { background: var(--tier-s); }
+.tier-a .tier-label, .tier-btn.tier-a { background: var(--tier-a); }
+.tier-b .tier-label, .tier-btn.tier-b { background: var(--tier-b); }
+.tier-c .tier-label, .tier-btn.tier-c { background: var(--tier-c); }
+.tier-d .tier-label, .tier-btn.tier-d { background: var(--tier-d); }
+.tier-btn.tier-l { background: var(--surface-2); color: var(--text); font-size: 1rem; }
+
+.thumbnail {
+    width: 80px;
+    height: 80px;
+    background: var(--surface-2);
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+/* ---- Content (unranked) ---- */
+.file-controls { margin-bottom: 20px; }
+.file-controls #editModeTxt { margin: 0; }
+.delete-mode-actions { margin-left: auto; }
+
+.image-grid-section { padding: 24px; }
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.grid-image {
+    width: 100%;
+    height: 180px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    cursor: pointer;
+    border: 3px solid transparent;
+}
+
+.image-grid.delete-mode .grid-image:hover { border-color: var(--border); }
+.grid-image.gi-delete-selected,
+.image-grid.delete-mode .grid-image.gi-delete-selected { border-color: var(--danger-strong); }
+
+/* ---- Media viewer ---- */
+.media-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000000e6;
+}
+
+.media-viewer-content {
+    position: relative;
+    max-width: 90%;
+    max-height: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#modalMediaContainer img,
+#modalMediaContainer video {
+    display: block;
+    max-width: min(800px, 90vw);
+    max-height: min(600px, 70vh);
+    min-width: min(400px, 80vw);
+    min-height: 300px;
+    width: auto;
+    height: auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    object-fit: contain;
+    background: #000;
+    border: none;
+    cursor: default;
+}
+
+.nav-btn {
+    position: absolute;
+    top: 40%;
+    transform: translateY(-50%);
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: var(--text);
+    background: #1a1e28b3;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.nav-btn:hover { background: var(--surface-2); }
+.prev-btn { left: -80px; }
+.next-btn { right: -80px; }
+
+.tier-buttons {
+    margin-top: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+.tier-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.tier-btn:hover { transform: scale(1.08); }
+
+@media (max-width: 768px) {
+    .prev-btn { left: 10px; }
+    .next-btn { right: 10px; }
+    .nav-btn { width: 40px; height: 40px; font-size: 1.4rem; }
+    .tier-label { width: 60px; font-size: 1.5rem; }
+    #modalMediaContainer img,
+    #modalMediaContainer video { min-height: 200px; }
+}

@@ -1,0 +1,876 @@
+/* Drone + Metronome. Scoped to .drone-page so its element styles
+   (buttons, headings, sliders) don't leak into the shared site header. */
+
+.drone-page {
+    min-height: calc(100dvh - var(--header-h));
+    background:
+        radial-gradient(circle at center, #20253b 0%, transparent 70%);
+    color: #f5f5f7;
+}
+
+.app {
+    width: min(900px, 96vw);
+    min-height: calc(100dvh - var(--header-h));
+    margin: auto;
+    padding: clamp(10px, 2vh, 30px) clamp(10px, 3vw, 20px) clamp(14px, 3vh, 40px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1.6vh, 18px);
+    text-align: center;
+}
+
+.panel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(6px, 1.6vh, 18px);
+}
+
+/* Short-and-wide viewports (short desktop/laptop windows): put the
+   controls panel beside the circle instead of above it, since
+   stacking everything vertically can't fit the height. Narrower
+   landscape phones fall back to the column layout below instead —
+   a narrow panel just wraps taller here and loses more than it
+   saves. */
+@media (max-height: 560px) and (min-width: 900px) {
+    .app {
+        flex-direction: row;
+        justify-content: center;
+        gap: clamp(12px, 2vw, 28px);
+    }
+
+    .panel {
+        width: auto;
+        flex: 0 1 auto;
+        max-width: 46%;
+    }
+
+    .info-panel {
+        display: none;
+    }
+}
+
+.app-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+:where(.drone-page) h1 {
+    margin: 0;
+    font-size: clamp(20px, min(5vw, 4.5vh), 40px);
+    font-weight: 600;
+}
+
+.info-button {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #dfe3f0;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.info-button:hover {
+    background: rgba(255,255,255,0.14);
+    transform: translateY(-50%);
+}
+
+.info-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 30;
+    width: min(320px, 86vw);
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(24, 28, 44, 0.97);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+    color: #b6bad0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.info-panel[hidden] {
+    display: none;
+}
+
+.info-lead {
+    margin: 0 0 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    color: #d5d8e8;
+}
+
+.info-shortcuts {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    row-gap: 9px;
+    align-items: baseline;
+}
+
+.info-shortcuts > div {
+    display: contents;
+}
+
+.info-shortcuts dt {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-width: 110px;
+}
+
+.info-shortcuts dd {
+    margin: 0;
+    color: #b6bad0;
+}
+
+.info-hint {
+    display: block;
+    color: #7a7f96;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+:where(.drone-page) kbd {
+    display: inline-block;
+    min-width: 1.3em;
+    padding: 1px 5px;
+    text-align: center;
+    font: 600 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #eef0f8;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+}
+
+.subtitle {
+    color: #858ba3;
+    font-size: clamp(11px, 1.6vh, 14px);
+    margin: 0;
+}
+
+/* =========================
+   METRONOME
+========================= */
+
+.metronome {
+    width: min(400px, 88vw);
+    margin: 0;
+    padding: clamp(8px, 1.4vh, 14px) clamp(10px, 2.4vw, 16px);
+    border-radius: 16px;
+    background: rgba(24, 28, 44, 0.9);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 15px 50px rgba(0,0,0,0.25);
+}
+
+.metro-title {
+    color: #858ba3;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 10px;
+    margin-bottom: clamp(4px, 0.9vh, 8px);
+}
+
+.bpm-display {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: clamp(4px, 0.9vh, 8px);
+}
+
+.bpm-number {
+    font-size: clamp(20px, 3.6vh, 30px);
+    line-height: 1;
+    font-weight: 700;
+}
+
+.bpm-label {
+    color: #858ba3;
+    font-size: 11px;
+}
+
+.metro-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.metronome button {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 7px;
+}
+
+:where(.drone-page) button {
+    border: 0;
+    color: white;
+    background: #292e43;
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+:where(.drone-page) button:hover {
+    background: #3a405b;
+    transform: translateY(-1px);
+}
+
+:where(.drone-page) button:active {
+    transform: translateY(1px);
+}
+
+.metro-start {
+    background: #5865e8;
+    min-width: 90px;
+    font-weight: 600;
+}
+
+.metro-start:hover {
+    background: #6975ff;
+}
+
+.tap {
+    background: #333950;
+}
+
+:where(.drone-page) input[type="range"] {
+    width: 160px;
+    accent-color: #6875ff;
+    cursor: pointer;
+}
+
+.metronome .metro-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #858ba3;
+    font-size: 12px;
+}
+
+.metronome .option {
+    gap: 6px;
+    font-size: 11px;
+}
+
+.metronome input[type="range"] {
+    width: 110px;
+}
+
+.metronome select {
+    background: #292e43;
+    border: 0;
+    color: white;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
+/* Beat lights */
+
+.metronome .beats {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: clamp(6px, 1.2vh, 12px);
+}
+
+.metronome .beat {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #383e55;
+    transition:
+        background 0.05s,
+        box-shadow 0.05s,
+        transform 0.05s;
+}
+
+.beat.active {
+    background: #6875ff;
+    box-shadow: 0 0 15px #6875ff;
+    transform: scale(1.35);
+}
+
+.beat.first.active {
+    background: #ff657a;
+    box-shadow: 0 0 18px #ff657a;
+}
+
+/* =========================
+   DRONE CONTROLS
+========================= */
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.controls-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.controls-row--volume {
+    width: 100%;
+}
+
+.octave {
+    min-width: 100px;
+    font-weight: 600;
+}
+
+.layout-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 124px;
+    padding: 7px 10px;
+    background: #292e43;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.layout-toggle:hover {
+    background: #353d5a;
+}
+
+.layout-toggle-visual {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 30px;
+    padding: 0 6px;
+}
+
+.layout-toggle-icon {
+    position: relative;
+    width: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #dfe3f0;
+    font-size: 15px;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.layout-toggle-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #14162a;
+    color: #dfe3f0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.layout-toggle-icon:hover::after,
+.layout-toggle-icon:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+.layout-toggle[data-layout="circle"] .layout-toggle-circle,
+.layout-toggle[data-layout="piano"] .layout-toggle-piano {
+    opacity: 1;
+    transform: scale(1.08);
+}
+
+.layout-toggle-switch {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.layout-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(#f8f9ff, #dfe5ff);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    transition: transform 0.22s ease;
+}
+
+.layout-toggle[data-layout="piano"] .layout-toggle-thumb {
+    transform: translateX(20px);
+}
+
+.layout-toggle[data-layout="piano"] .layout-toggle-switch {
+    background: rgba(104,117,255,0.55);
+}
+
+.stop {
+    background: #542d3a;
+}
+
+.stop:hover {
+    background: #71394b;
+}
+
+.volume-option {
+    justify-content: center;
+    width: min(100%, 260px);
+    padding-top: 4px;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.volume-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    color: #dfe3f0;
+    filter: drop-shadow(0 0 6px rgba(104,117,255,0.45));
+}
+
+.volume-slider-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.volume-bubble {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(17, 20, 33, 0.95);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+    color: #f5f5f7;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    white-space: nowrap;
+}
+
+.volume-bubble.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.volume-option input[type="range"] {
+    width: min(100%, 200px);
+}
+
+/* =========================
+   CIRCLE
+========================= */
+
+.circle {
+    position: relative;
+    container-type: inline-size;
+    width: var(--circle-size, min(90vw, 400px));
+    aspect-ratio: 1;
+    margin: auto;
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle,
+            #161a2b 0 31%,
+            #20263c 32% 33%,
+            #111421 34% 100%
+        );
+    box-shadow:
+        0 0 60px rgba(70, 90, 170, 0.12),
+        inset 0 0 40px rgba(0,0,0,0.5);
+    flex-shrink: 1;
+}
+
+.circle::before {
+    content: "";
+    position: absolute;
+    inset: 9%;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 50%;
+}
+
+.circle.layout-piano {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: var(--piano-width, var(--circle-size, min(90vw, 400px)));
+    height: var(--circle-size, min(90vw, 400px));
+    aspect-ratio: auto;
+    padding: 18px 12px 12px;
+    border-radius: 22px;
+    background:
+        radial-gradient(
+            circle,
+            #161a2b 0 31%,
+            #20263c 32% 33%,
+            #111421 34% 100%
+        );
+}
+
+.circle.layout-piano::before {
+    inset: 5%;
+}
+
+.circle.layout-piano .center {
+    display: none;
+}
+
+.circle.layout-piano .piano {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.circle.layout-piano .white-key-wrap {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+}
+
+.circle.layout-piano .note {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    border-radius: 0 0 8px 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: filter 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.circle.layout-piano .note .frequency {
+    display: none;
+}
+
+.circle.layout-piano .note .name {
+    font-size: clamp(10px, 2.6vw, 15px);
+    font-weight: 600;
+}
+
+.circle.layout-piano .note.white-key {
+    width: 100%;
+    height: 100%;
+    min-height: 110px;
+    padding-bottom: 10px;
+    background: linear-gradient(#fbfbfd, #dedfe9);
+    border: 1px solid rgba(10, 12, 25, 0.35);
+    color: #20263c;
+    box-shadow:
+        inset 0 -10px 14px rgba(0,0,0,0.08),
+        0 3px 4px rgba(0,0,0,0.25);
+}
+
+.circle.layout-piano .note.white-key.active {
+    background: linear-gradient(#8d97ff, #6875ff);
+    color: #fff;
+    box-shadow:
+        inset 0 -10px 14px rgba(0,0,0,0.15),
+        0 0 20px rgba(104,117,255,0.55);
+}
+
+.circle.layout-piano .note.black-key {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translateX(50%);
+    width: 58%;
+    height: 60%;
+    min-height: 0;
+    padding-bottom: 8px;
+    background: linear-gradient(#2c2c33, #08080a);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #f5f5f7;
+    z-index: 2;
+    box-shadow:
+        0 6px 10px rgba(0,0,0,0.5),
+        inset 0 -6px 8px rgba(255,255,255,0.05);
+}
+
+.circle.layout-piano .note.black-key.active {
+    background: linear-gradient(#8891ff, #4a54cc);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow:
+        0 6px 10px rgba(0,0,0,0.5),
+        0 0 18px rgba(104,117,255,0.6);
+}
+
+.note {
+    position: absolute;
+    width: 13cqw;
+    height: 13cqw;
+    margin: -6.5cqw;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: #272d45;
+    color: #dfe3f0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    user-select: none;
+
+    transition:
+        transform 0.15s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.circle:not(.layout-piano) .note:hover {
+    background: #363d5c;
+    transform: scale(1.08);
+    z-index: 2;
+}
+
+.note .name {
+    font-size: clamp(11px, 3.4cqw, 20px);
+    font-weight: 700;
+}
+
+.note .frequency {
+    margin-top: 2px;
+    color: #858ba3;
+    font-size: clamp(7px, 1.7cqw, 10px);
+}
+
+@supports not (container-type: inline-size) {
+    .note {
+        width: 76px;
+        height: 76px;
+        margin: -38px;
+    }
+
+    .note .name {
+        font-size: 20px;
+    }
+
+    .note .frequency {
+        font-size: 10px;
+    }
+}
+
+.note.active {
+    background: #6875ff;
+    color: white;
+    border-color: #aab1ff;
+    box-shadow:
+        0 0 20px rgba(104,117,255,0.55),
+        0 0 50px rgba(104,117,255,0.18);
+}
+
+.note.active .frequency {
+    color: #dfe2ff;
+}
+
+.center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width: clamp(90px, 28.3cqw, 170px);
+    height: clamp(90px, 28.3cqw, 170px);
+    border-radius: 50%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    background: #111421;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 0 35px rgba(0,0,0,0.5);
+
+    pointer-events: none;
+}
+
+@supports not (container-type: inline-size) {
+    .center {
+        width: 170px;
+        height: 170px;
+    }
+}
+
+.center-note {
+    font-size: clamp(18px, 5.3cqw, 32px);
+    font-weight: 700;
+}
+
+.center-label {
+    margin-top: 4px;
+    color: #858ba3;
+    font-size: clamp(9px, 2cqw, 12px);
+}
+
+.status {
+    min-height: 25px;
+    margin: 0;
+    color: #858ba3;
+    font-size: 13px;
+}
+
+/* =========================
+   BREAKPOINTS
+========================= */
+
+/* Phones */
+@media (max-width: 600px) {
+    :where(.drone-page) input[type="range"] {
+        width: 120px;
+    }
+
+    .metro-options {
+        gap: 12px;
+    }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+    .metro-controls {
+        gap: 6px;
+    }
+
+    :where(.drone-page) button {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    .octave,
+    .metro-start {
+        min-width: 78px;
+    }
+}
+
+/*
+    Fallback compaction for short viewports (landscape phones, small
+    windows) where even a minimum-size circle wouldn't otherwise fit.
+    Applied by fitLayout() in JS, which measures actual overflow
+    rather than guessing from viewport height alone.
+*/
+
+.app.compact {
+    gap: 4px;
+}
+
+.app.compact .metronome {
+    padding: 6px 14px;
+}
+
+.app.compact .metro-title {
+    margin-bottom: 3px;
+}
+
+.app.compact .bpm-display {
+    margin-bottom: 3px;
+}
+
+.app.compact .beats {
+    margin-top: 5px;
+}
+
+.app.compact .status {
+    min-height: 0;
+}
+
+.app.ultra-compact .subtitle,
+.app.ultra-compact .metro-title {
+    display: none;
+}
+
+.app.ultra-compact h1 {
+    font-size: 18px;
+}
+
+.app.ultra-compact .metro-controls,
+.app.ultra-compact .metro-options {
+    gap: 5px;
+}

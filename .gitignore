@@ -1,4 +1,5 @@
-/logs
 .env
-/data/*.sqlite
-/public/uploads/*
+
+# Runtime data: databases, uploads, logs, backups. Never web-accessible.
+/storage/*
+!/storage/.gitkeep
